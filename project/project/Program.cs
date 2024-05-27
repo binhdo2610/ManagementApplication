@@ -1,7 +1,12 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using project.Data;
+using Swashbuckle.AspNetCore.Filters;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Diagnostics;
+using System.Text;
 
 
 
@@ -13,31 +18,41 @@ namespace project
         {
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddAuthorization();
-            builder.Services.AddAuthentication("Bearer").AddJwtBearer();
+      /*      builder.Services.AddAuthentication("Bearer").AddJwtBearer();*/
 
             // Add services to the container.
 
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen(options=>
+            builder.Services.AddSwaggerGen(options =>
             {
-                options.InferSecuritySchemes();
-                options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
                 {
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference{Type = ReferenceType.SecurityScheme,Id = "Bearer"}
-                        },
-                        new string[]{ }
-                    }
+                    Description="",
+                    In = ParameterLocation.Header,
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.ApiKey,
                 });
+                options.OperationFilter<SecurityRequirementsOperationFilter>();
             });
-            builder.Services.Configure<SwaggerGeneratorOptions>(options =>
-            {
-                options.InferSecuritySchemes = true;
-            });
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.
+                    GetBytes(builder.Configuration.GetSection("AppSettings:Token").Value)),
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                    };
+               
+           
+                });
+           
+        
             builder.Services.AddDbContext<Datacontext>(options =>
             {
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -52,8 +67,10 @@ namespace project
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+            
 
             app.UseHttpsRedirection();
+            app.UseAuthentication();
 
             app.UseAuthorization();
 
